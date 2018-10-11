@@ -1,12 +1,14 @@
 #/bin/bash
 
 # Global Variables
+app_guid=""
 space_guid=""
 space_name=""
 name=""
 memory=""
 disk=""
 state=""
+Host=""
 health_check_timeout=""
 
 # Param Variables
@@ -65,6 +67,10 @@ func_get_space_guid() {
   space_guid=`jq -r ".resources[$counter].metadata.guid" sample.json`
 }
 
+func_get_app_guid() {
+  app_guid=`jq -r ".resources[$counter].metadata.guid" sample.json`
+}
+
 func_get_space_name() {
   space_name=`cf curl /v2/spaces/$space_guid | jq -r ".entity.name"`
 }
@@ -93,16 +99,28 @@ func_get_health_check_timeout() {
   health_check_timeout=`jq -r ".resources[$counter].entity.health_check_timeout" sample.json`
 }
 
+func_get_app_stats() {
+  if [[ $state != "STOPPED" ]]; then
+    endpoint="/v2/apps/$app_guid/stats"
+    func_get_command
+    host=`jq -r ".[].stats.host" temp.json`
+  else 
+    host="N/A"
+  fi
+}
+
 func_get_command() {
   `cf curl $endpoint > temp.json`
 }
 
 func_init_app_details() {
   func_get_name
+  func_get_app_guid
   func_get_memory
   func_get_disk
   func_get_state
   func_get_health_check_timeout
+  func_get_app_stats
 }
 
 func_get_apps_for_space() {
@@ -142,11 +160,13 @@ do
  if [[ $name != "null" ]]; then
   echo '/ ****************************** /' 
   echo 'Name: ' $name
+  echo 'Guid: ' $app_guid
   echo 'Memory: ' $memory
   echo 'Disk Quota: ' $disk
   echo 'State: ' $state
   echo 'Health-Check-Timeout: ' $health_check_timeout
   echo 'Space: ' $space_name
+  echo 'Host: ' $host
   echo '/ ****************************** /'
 
  fi 
