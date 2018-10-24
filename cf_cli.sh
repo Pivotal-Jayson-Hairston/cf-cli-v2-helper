@@ -7,6 +7,7 @@ space_name=""
 name=""
 memory=""
 disk=""
+port=""
 state=""
 Host=""
 health_check_timeout=""
@@ -43,13 +44,16 @@ while (( "$#" )); do
       ;;
     *) # preserve positional arguments
       PARAMS="$PARAMS $1"
-      echo $PARAMS
       shift
       ;;
   esac
 done
 # set positional arguments in their proper place
 eval set -- "$PARAMS"
+
+func_get_target() {
+   echo `cf target`
+}
 
 func_get_apps() {
   `cf curl /v2/apps > sample.json`
@@ -95,17 +99,31 @@ func_get_state() {
   state=`jq -r ".resources[$counter].entity.state" sample.json`
 }
 
+
 func_get_health_check_timeout() {
   health_check_timeout=`jq -r ".resources[$counter].entity.health_check_timeout" sample.json`
+}
+
+func_get_app_host() {
+  if [[ -f ./temp.json ]]; then
+    host=`jq -r '."0".stats.host' temp.json`
+  else 
+    host="N/A"
+  fi
+}
+
+func_get_app_port() {
+  if [[ -f ./temp.json ]]; then
+    port=`jq -r '."0".stats.port' temp.json`
+  else 
+    port="N/A"
+  fi
 }
 
 func_get_app_stats() {
   if [[ $state != "STOPPED" ]]; then
     endpoint="/v2/apps/$app_guid/stats"
     func_get_command
-    host=`jq -r ".[].stats.host" temp.json`
-  else 
-    host="N/A"
   fi
 }
 
@@ -121,6 +139,8 @@ func_init_app_details() {
   func_get_state
   func_get_health_check_timeout
   func_get_app_stats
+  func_get_app_host
+  func_get_app_port
 }
 
 func_get_apps_for_space() {
@@ -143,6 +163,10 @@ func_get_space_guid_for_name() {
   echo "Space name not found!"
   exit 0
 }
+
+# Start Program logic
+
+func_get_target
 
 if [ ! -z ${param_space} ]; then  
   func_get_space_guid_for_name
@@ -167,8 +191,8 @@ do
   echo 'Health-Check-Timeout: ' $health_check_timeout
   echo 'Space: ' $space_name
   echo 'Host: ' $host
+  echo 'Port ' $port
   echo '/ ****************************** /'
-
  fi 
   ((counter++))
 done
